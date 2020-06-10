@@ -2,39 +2,85 @@ module.exports = {
 	name: 'shadow',
 	description: 'Simple dice roller for Shadowrun.',
 	execute(message, args) {
+		message.delete().catch( _ =>{}); 
 
-		if (args.length < 1 || isNaN(parseInt(args[0])) ) {
-			message.channel.send("Error: Input not valid.");
+
+		if (args.length < 1) {
+			message.channel.send("Error: No arguments specified.");
 			return;
 		}
-		let dice = parseInt(args.shift());
+		if (isNaN(parseInt(args[0]))){
+			message.channel.send("Error: Did not specify an amount to roll.");
+			return;
+		}
+
+		let Parser = require('expr-eval').Parser;
+		let parser = new Parser();
+		let parsing = true;
+		let expression = "";
+
+
+		let current;
+		let prev;
+
+		// use expr-eval
+		while (args.length > 0 && parsing){
+			current = args.shift();
+			console.log("current argument: " + current);
+
+			// if prev is an operator, it must be followed by a number else it's an invalid expression
+			if (prev === "+" || prev === "-"){
+				if (isNaN(parseInt(current))){
+					message.channel.send("Error: Invalid expression.");
+					return;
+				}
+			}
+			// if prev is a number and not followed by an operator, then we're done parsing
+			else if (!isNaN(parseInt(prev))){
+				if (current != "+" && current != "-"){
+					parsing = false;
+					args.unshift(current);
+					break;
+				}
+			}
+			// add the current character to the expression to parse
+			expression += current;
+			prev = current;
+		}
+
+		console.log("evaluating expression: " + expression);
+		let exp = parser.parse(expression);
+		let dice = exp.evaluate();
+
 		let results, hit_count, rerolls;
 		let exploding = false;
 		let desc = ""; // description of roll
 
 		while (args.length > 0) {
-			arg = args.shift();
-			if (arg === "-e"){
+			// math parsing
+			current = args.shift();
+
+			if (current === "-e"){
 				exploding = true;
 			}
 			else {
 				if (desc){
 					desc += " ";
 				}
-				desc += arg;
+				desc += current;
 			}
 		}
 
-		
-
-		reply = (desc ? "**" + desc + ":** " : "**Roll:** ");
+		let reply = "<@" + message.author.id + ">\n";
+		reply += (desc ? "**" + desc + "** " : "**Roll** ");
+		reply += "(" + expression + "=" + dice + " rolls): ";
 
 		[ results, hit_count, rerolls ] = roll(dice, exploding);
 	
 		if (exploding){
 			reply += "(" + results + ")\nHits: " + hit_count + " | Rerolls: " + rerolls;
 
-			message.channel.send(reply);
+			message.channel.send("\n" + reply);
 
 			let totalHits = hit_count;
 			dice = rerolls;
