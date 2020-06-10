@@ -1,27 +1,40 @@
 module.exports = {
 	name: 'shadow',
-	description: 'Ping!',
+	description: 'Simple dice roller for Shadowrun.',
 	execute(message, args) {
 
 		if (args.length < 1 || isNaN(parseInt(args[0])) ) {
 			message.channel.send("Error: Input not valid.");
 			return;
 		}
-
-		let dice = parseInt(args[0]);
+		let dice = parseInt(args.shift());
 		let results, hit_count, rerolls;
 		let exploding = false;
+		let desc = ""; // description of roll
 
-
-		if (args.length >= 2 && args[1] === "-e"){
-			exploding = true;
+		while (args.length > 0) {
+			arg = args.shift();
+			if (arg === "-e"){
+				exploding = true;
+			}
+			else {
+				if (desc){
+					desc += " ";
+				}
+				desc += arg;
+			}
 		}
-		
-		[ results, hit_count, rerolls ] = roll(dice, exploding);
 
 		
+
+		reply = (desc ? "**" + desc + ":** " : "**Roll:** ");
+
+		[ results, hit_count, rerolls ] = roll(dice, exploding);
+	
 		if (exploding){
-			message.channel.send("**Roll:** (" + results + ")\nHits: " + hit_count + " || Rerolls: " + rerolls);
+			reply += "(" + results + ")\nHits: " + hit_count + " | Rerolls: " + rerolls;
+
+			message.channel.send(reply);
 
 			let totalHits = hit_count;
 			dice = rerolls;
@@ -29,15 +42,17 @@ module.exports = {
 
 			while (dice > 0){
 				[ results, hit_count, rerolls ] = roll(dice, exploding);
-				message.channel.send("**Roll:** (" + results + ")\nHits: " + hit_count + " || Rerolls: " + rerolls);
+				reply = "**Roll:** (" + results + ")\nHits: " + hit_count + " | Rerolls: " + rerolls;
+				message.channel.send(reply);
 				totalHits += hit_count;
 				dice = rerolls;
 				rerolls = 0;
 			}
-			message.channel.send("Total Hits: **" + totalHits + "**");
+			message.channel.send("**Total Hits:** " + totalHits);
 		}
 		else {
-			message.channel.send("**Roll:** (" + results + ")\nHits: " + hit_count);
+			reply += "("+ results + ")\n**Hits:** " + hit_count;
+			message.channel.send(reply);
 		}
 	},
 };
